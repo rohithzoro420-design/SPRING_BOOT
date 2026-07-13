@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalog — Server 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #171d27;
+    --ink-soft: #232c3a;
+    --card: #f2ecd9;
+    --card-shadow: #d9cfae;
+    --gold: #c9a227;
+    --gold-bright: #e0bb3d;
+    --text-dark: #241f16;
+    --text-muted: #6b6350;
+    --rule: rgba(36, 31, 22, 0.18);
+    --error: #a4372a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 10%, var(--ink-soft) 0%, transparent 45%),
+      radial-gradient(circle at 85% 90%, var(--ink-soft) 0%, transparent 40%);
+    color: var(--card);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 20px;
+    margin-bottom: 8px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold-bright);
+    margin: 0 0 6px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: clamp(32px, 5vw, 48px);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .drawer-count {
+    text-align: right;
+    font-size: 12px;
+    color: #a9b0bd;
+  }
+
+  .drawer-count strong {
+    display: block;
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    color: var(--gold-bright);
+    font-weight: 600;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    margin: 28px 0 36px;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 220px;
+    position: relative;
+  }
+
+  .search-box::before {
+    content: "SEARCH:";
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--gold-bright);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+
+  input, select {
+    font-family: 'Space Mono', monospace;
+    background: var(--ink-soft);
+    border: 1px solid rgba(201, 162, 39, 0.35);
+    color: var(--card);
+    padding: 12px 14px;
+    font-size: 14px;
+    border-radius: 2px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding-left: 84px;
+  }
+
+  input:focus, select:focus, button:focus {
+    outline: 2px solid var(--gold-bright);
+    outline-offset: 2px;
+  }
+
+  .btn {
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 12px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.15s ease;
+  }
+
+  .btn:hover { background: var(--gold-bright); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(201, 162, 39, 0.5);
+    color: var(--gold-bright);
+  }
+
+  .btn-ghost:hover { background: rgba(201, 162, 39, 0.1); }
+
+  /* New card slip (add-book form) */
+  .slip {
+    background: var(--card);
+    color: var(--text-dark);
+    border-radius: 3px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+    display: none;
+    box-shadow: 0 10px 0 -4px var(--card-shadow), 0 16px 24px rgba(0,0,0,0.35);
+  }
+
+  .slip.open { display: block; }
+
+  .slip h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+
+  .slip .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 18px;
+  }
+
+  .slip-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .slip-grid input {
+    background: #fff;
+    color: var(--text-dark);
+    border: 1px solid var(--rule);
+  }
+
+  .slip-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .status-msg {
+    font-size: 12px;
+    margin-top: 10px;
+    min-height: 16px;
+  }
+
+  .status-msg.error { color: var(--error); }
+  .status-msg.ok { color: #3a7d44; }
+
+  /* Card grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 22px;
+  }
+
+  .card {
+    position: relative;
+    background: var(--card);
+    color: var(--text-dark);
+    border-radius: 2px;
+    padding: 22px 20px 18px;
+    box-shadow: 0 8px 0 -4px var(--card-shadow), 0 14px 20px rgba(0,0,0,0.3);
+    transition: transform 0.15s ease;
+  }
+
+  .card:hover { transform: translateY(-3px); }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    left: -6px;
+    width: 12px;
+    height: 12px;
+    background: var(--ink);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 2px var(--card-shadow);
+  }
+
+  .card-id {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .card h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    line-height: 1.2;
+  }
+
+  .card .author {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-style: italic;
+    font-family: 'Fraunces', serif;
+  }
+
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed var(--rule);
+    padding-top: 12px;
+    font-size: 11px;
+  }
+
+  .genre-stamp {
+    border: 1.5px solid var(--error);
+    color: var(--error);
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    transform: rotate(-3deg);
+    font-size: 10px;
+  }
+
+  .pages { color: var(--text-muted); }
+
+  .empty, .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: #a9b0bd;
+    font-size: 13px;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 60px;
+    font-size: 11px;
+    color: #5b6270;
+    letter-spacing: 0.08em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Server 1 · localhost:8081</p>
+      <h1>The Catalog</h1>
+    </div>
+    <div class="drawer-count">
+      Cards in drawer
+      <strong id="count">—</strong>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="title, author, or genre…">
+    </div>
+    <button class="btn-ghost btn" id="clearBtn">Clear</button>
+    <button class="btn" id="toggleSlip">+ New Card</button>
+  </div>
+
+  <div class="slip" id="slip">
+    <h2>File a new card</h2>
+    <p class="hint">This writes directly to the catalog — POST /books</p>
+    <div class="slip-grid">
+      <input type="text" id="f-title" placeholder="Title">
+      <input type="text" id="f-author" placeholder="Author">
+      <input type="text" id="f-genre" placeholder="Genre">
+      <input type="number" id="f-pages" placeholder="Pages" min="1">
+    </div>
+    <div class="slip-actions">
+      <button class="btn-ghost btn" id="cancelSlip">Cancel</button>
+      <button class="btn" id="submitSlip">File Card</button>
+    </div>
+    <p class="status-msg" id="slipStatus"></p>
+  </div>
+
+  <div id="gridContainer">
+    <p class="loading">Pulling the drawer open…</p>
+  </div>
+
+  <footer>BOOK CATALOG SERVER &nbsp;·&nbsp; IN-MEMORY DRAWER &nbsp;·&nbsp; RESETS ON RESTART</footer>
+</div>
+
+<script>
+  const API = '/books';
+  let allBooks = [];
+
+  const gridContainer = document.getElementById('gridContainer');
+  const countEl = document.getElementById('count');
+  const searchInput = document.getElementById('searchInput');
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderCards(books) {
+    countEl.textContent = allBooks.length;
+
+    if (books.length === 0) {
+      gridContainer.innerHTML = '<p class="empty">No cards match that search. Try another title, author, or genre.</p>';
+      return;
+    }
+
+    gridContainer.innerHTML = `<div class="grid">${books.map(b => `
+      <div class="card">
+        <div class="card-id">CARD NO. ${String(b.id).padStart(4, '0')}</div>
+        <h3>${escapeHtml(b.title)}</h3>
+        <div class="author">${escapeHtml(b.author)}</div>
+        <div class="card-meta">
+          <span class="genre-stamp">${escapeHtml(b.genre)}</span>
+          <span class="pages">${b.pages} pp.</span>
+        </div>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  async function loadBooks() {
+    try {
+      const res = await fetch(API);
+      if (!res.ok) throw new Error('Server responded with ' + res.status);
+      allBooks = await res.json();
+      applyFilter();
+    } catch (err) {
+      gridContainer.innerHTML = `<p class="empty">Couldn't reach the catalog server. Is it running on :8081?<br>(${escapeHtml(err.message)})</p>`;
+    }
+  }
+
+  function applyFilter() {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) {
+      renderCards(allBooks);
+      return;
+    }
+    const filtered = allBooks.filter(b =>
+      b.title.toLowerCase().includes(q) ||
+      b.author.toLowerCase().includes(q) ||
+      b.genre.toLowerCase().includes(q)
+    );
+    renderCards(filtered);
+  }
+
+  searchInput.addEventListener('input', applyFilter);
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    searchInput.value = '';
+    applyFilter();
+  });
+
+  const slip = document.getElementById('slip');
+  const toggleSlip = document.getElementById('toggleSlip');
+  const cancelSlip = document.getElementById('cancelSlip');
+  const slipStatus = document.getElementById('slipStatus');
+
+  toggleSlip.addEventListener('click', () => {
+    slip.classList.toggle('open');
+    slipStatus.textContent = '';
+  });
+
+  cancelSlip.addEventListener('click', () => {
+    slip.classList.remove('open');
+    slipStatus.textContent = '';
+  });
+
+  document.getElementById('submitSlip').addEventListener('click', async () => {
+    const title = document.getElementById('f-title').value.trim();
+    const author = document.getElementById('f-author').value.trim();
+    const genre = document.getElementById('f-genre').value.trim();
+    const pages = parseInt(document.getElementById('f-pages').value, 10);
+
+    if (!title || !author || !genre || !pages) {
+      slipStatus.textContent = 'Fill in every field before filing the card.';
+      slipStatus.className = 'status-msg error';
+      return;
+    }
+
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, author, genre, pages })
+      });
+      if (!res.ok) throw new Error('Server responded with ' + res.status);
+
+      slipStatus.textContent = 'Card filed.';
+      slipStatus.className = 'status-msg ok';
+      document.getElementById('f-title').value = '';
+      document.getElementById('f-author').value = '';
+      document.getElementById('f-genre').value = '';
+      document.getElementById('f-pages').value = '';
+      await loadBooks();
+      setTimeout(() => { slip.classList.remove('open'); slipStatus.textContent = ''; }, 900);
+    } catch (err) {
+      slipStatus.textContent = 'Could not file the card: ' + err.message;
+      slipStatus.className = 'status-msg error';
+    }
+  });
+
+  loadBooks();
+</script>
+</body>
+</html>

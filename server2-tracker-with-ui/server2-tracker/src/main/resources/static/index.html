@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Server 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #171d27;
+    --ink-soft: #232c3a;
+    --card: #f2ecd9;
+    --card-shadow: #d9cfae;
+    --gold: #c9a227;
+    --gold-bright: #e0bb3d;
+    --ribbon: #a4372a;
+    --ribbon-bright: #c94a3a;
+    --text-dark: #241f16;
+    --text-muted: #6b6350;
+    --rule: rgba(36, 31, 22, 0.18);
+    --ok: #3a7d44;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 10%, var(--ink-soft) 0%, transparent 45%),
+      radial-gradient(circle at 85% 90%, var(--ink-soft) 0%, transparent 40%);
+    color: var(--card);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--ribbon);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ribbon-bright);
+    margin: 0 0 6px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: clamp(32px, 5vw, 48px);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    background: var(--ribbon);
+  }
+
+  .stat {
+    background: var(--ink);
+    padding: 6px 4px 2px;
+    text-align: right;
+  }
+
+  .stat-num {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--gold-bright);
+    display: block;
+    line-height: 1.1;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #a9b0bd;
+  }
+
+  section { margin-top: 48px; }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gold-bright);
+    margin: 0 0 4px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  h2 .count {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: #a9b0bd;
+    font-weight: 400;
+  }
+
+  .section-hint {
+    font-size: 11px;
+    color: #8891a0;
+    margin: 0 0 20px;
+  }
+
+  /* Currently reading ledger cards */
+  .ledger-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .ledger-card {
+    background: var(--card);
+    color: var(--text-dark);
+    border-radius: 2px;
+    padding: 20px 22px 18px;
+    box-shadow: 0 8px 0 -4px var(--card-shadow), 0 14px 20px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ledger-card::after {
+    content: "";
+    position: absolute;
+    top: -8px;
+    right: 24px;
+    width: 16px;
+    height: 40px;
+    background: var(--ribbon);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  }
+
+  .ledger-card.finished::after { background: var(--ok); }
+
+  .ledger-card h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    margin: 0 0 2px;
+    padding-right: 30px;
+  }
+
+  .ledger-card .author {
+    font-size: 12px;
+    font-style: italic;
+    font-family: 'Fraunces', serif;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  .progress-track {
+    height: 8px;
+    background: rgba(36,31,22,0.12);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--ribbon);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .ledger-card.finished .progress-fill { background: var(--ok); }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  .ledger-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .ledger-actions input[type="number"] {
+    width: 72px;
+    padding: 7px 8px;
+    font-size: 12px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: #fff;
+    color: var(--text-dark);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .mini-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 7px 12px;
+    border-radius: 2px;
+    border: none;
+    cursor: pointer;
+  }
+
+  .mini-btn.primary { background: var(--ribbon); color: #fff; }
+  .mini-btn.primary:hover { background: var(--ribbon-bright); }
+  .mini-btn.ghost { background: transparent; border: 1px solid var(--rule); color: var(--text-dark); }
+  .mini-btn.ghost:hover { background: rgba(36,31,22,0.06); }
+
+  .finished-tag {
+    font-size: 11px;
+    color: var(--ok);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .stars { color: var(--gold); font-size: 14px; letter-spacing: 1px; }
+
+  /* Catalog picker */
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+
+  .picker-card {
+    background: var(--ink-soft);
+    border: 1px solid rgba(201,162,39,0.2);
+    border-radius: 2px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .picker-card h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    margin: 0;
+    color: var(--card);
+  }
+
+  .picker-card .meta {
+    font-size: 10px;
+    color: #8891a0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .picker-card .start-btn {
+    align-self: flex-start;
+    background: var(--gold);
+    color: var(--ink);
+  }
+
+  .picker-card .start-btn:hover { background: var(--gold-bright); }
+
+  .picker-card.tracked {
+    opacity: 0.4;
+  }
+
+  /* Recommendations */
+  .rec-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .rec-chip {
+    background: var(--ink-soft);
+    border: 1px solid rgba(201,162,39,0.3);
+    border-radius: 20px;
+    padding: 10px 18px;
+    font-size: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  .rec-chip .t { font-family: 'Fraunces', serif; font-size: 14px; color: var(--gold-bright); }
+  .rec-chip .a { color: #a9b0bd; font-style: italic; }
+
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #8891a0;
+    font-size: 12px;
+    border: 1px dashed rgba(201,162,39,0.2);
+    border-radius: 4px;
+  }
+
+  .status-msg {
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .status-msg.error { color: var(--ribbon-bright); }
+
+  footer {
+    text-align: center;
+    margin-top: 64px;
+    font-size: 11px;
+    color: #5b6270;
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Server 2 · localhost:8082</p>
+      <h1>The Ledger</h1>
+    </div>
+  </header>
+
+  <div class="stat-row" id="statRow">
+    <div class="stat"><span class="stat-num" id="statTracked">—</span><span class="stat-label">Tracked</span></div>
+    <div class="stat"><span class="stat-num" id="statFinished">—</span><span class="stat-label">Finished</span></div>
+    <div class="stat"><span class="stat-num" id="statPages">—</span><span class="stat-label">Pages Read</span></div>
+    <div class="stat"><span class="stat-num" id="statRating">—</span><span class="stat-label">Avg Rating</span></div>
+  </div>
+
+  <section>
+    <h2>Currently on the desk <span class="count" id="deskCount"></span></h2>
+    <p class="section-hint">Books you're actively tracking — logged progress calls Server 1 to know each book's page count.</p>
+    <div id="deskGrid"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section>
+    <h2>Start a new book <span class="count" id="catalogCount"></span></h2>
+    <p class="section-hint">Pulled live from Server 1's catalog — GET /reading/catalog → Server 2 → Server 1.</p>
+    <div class="picker-grid" id="pickerGrid"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section>
+    <h2>Recommended next</h2>
+    <p class="section-hint">Based on books you rated 4★ or higher — Server 2 asks Server 1 for more in that genre.</p>
+    <div class="rec-row" id="recRow"><p class="empty">Rate a finished book 4★ or higher to see recommendations.</p></div>
+  </section>
+
+  <footer>READING TRACKER SERVER &nbsp;·&nbsp; IN-MEMORY LEDGER &nbsp;·&nbsp; TALKS TO SERVER 1 OVER HTTP</footer>
+</div>
+
+<script>
+  const BASE = '/reading';
+  let tracked = [];
+  let catalog = [];
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function stars(n) {
+    if (!n) return '';
+    return '★'.repeat(n) + '☆'.repeat(5 - n);
+  }
+
+  async function loadAll() {
+    await Promise.all([loadTracked(), loadCatalog(), loadStats(), loadRecs()]);
+  }
+
+  async function loadStats() {
+    try {
+      const res = await fetch(`${BASE}/stats`);
+      const s = await res.json();
+      document.getElementById('statTracked').textContent = s.booksTracked;
+      document.getElementById('statFinished').textContent = s.booksFinished;
+      document.getElementById('statPages').textContent = s.totalPagesRead;
+      document.getElementById('statRating').textContent = s.averageRating ? s.averageRating.toFixed(1) : '—';
+    } catch (e) { /* stats are non-critical */ }
+  }
+
+  async function loadTracked() {
+    const grid = document.getElementById('deskGrid');
+    try {
+      const res = await fetch(`${BASE}/all`);
+      tracked = await res.json();
+      document.getElementById('deskCount').textContent = `(${tracked.length})`;
+
+      if (tracked.length === 0) {
+        grid.innerHTML = '<p class="empty">Nothing on the desk yet. Pick a book below to start reading.</p>';
+        return;
+      }
+
+      grid.innerHTML = `<div class="ledger-grid">${tracked.map(p => {
+        const finished = p.status === 'FINISHED';
+        return `
+        <div class="ledger-card ${finished ? 'finished' : ''}">
+          <h3>${esc(p.title)}</h3>
+          <div class="author">${esc(p.genre)}</div>
+          <div class="progress-track"><div class="progress-fill" style="width:${p.percentComplete}%"></div></div>
+          <div class="progress-label"><span>${p.pagesRead} / ${p.totalPages} pp.</span><span>${p.percentComplete.toFixed(0)}%</span></div>
+          ${finished
+            ? `<span class="finished-tag">FINISHED</span> <span class="stars">${stars(p.rating)}</span>`
+            : `<div class="ledger-actions">
+                 <input type="number" min="0" max="${p.totalPages}" placeholder="pages" id="pages-${p.bookId}">
+                 <button class="mini-btn primary" onclick="logProgress(${p.bookId})">Log</button>
+                 <button class="mini-btn ghost" onclick="finishBook(${p.bookId})">Finish</button>
+               </div>`
+          }
+        </div>`;
+      }).join('')}</div>`;
+    } catch (e) {
+      grid.innerHTML = `<p class="empty">Couldn't reach Server 2. Is it running on :8082?</p>`;
+    }
+  }
+
+  async function loadCatalog() {
+    const grid = document.getElementById('pickerGrid');
+    try {
+      const res = await fetch(`${BASE}/catalog`);
+      catalog = await res.json();
+      document.getElementById('catalogCount').textContent = `(${catalog.length})`;
+
+      grid.innerHTML = catalog.map(b => {
+        const isTracked = tracked.some(p => p.bookId === b.id);
+        return `
+        <div class="picker-card ${isTracked ? 'tracked' : ''}">
+          <h4>${esc(b.title)}</h4>
+          <div class="meta">${esc(b.author)} · ${esc(b.genre)} · ${b.pages}pp</div>
+          <button class="mini-btn start-btn" ${isTracked ? 'disabled' : ''} onclick="startReading(${b.id})">
+            ${isTracked ? 'Already tracked' : 'Start reading'}
+          </button>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      grid.innerHTML = `<p class="empty">Couldn't reach Server 1 through Server 2. Is Server 1 running on :8081?</p>`;
+    }
+  }
+
+  async function loadRecs() {
+    const row = document.getElementById('recRow');
+    try {
+      const res = await fetch(`${BASE}/recommendations`);
+      const recs = await res.json();
+      if (recs.length === 0) {
+        row.innerHTML = '<p class="empty">Rate a finished book 4★ or higher to see recommendations.</p>';
+        return;
+      }
+      row.innerHTML = recs.map(b => `
+        <div class="rec-chip"><span class="t">${esc(b.title)}</span><span class="a">${esc(b.author)}</span></div>
+      `).join('');
+    } catch (e) {
+      row.innerHTML = '<p class="empty">Recommendations unavailable right now.</p>';
+    }
+  }
+
+  async function startReading(bookId) {
+    try {
+      const res = await fetch(`${BASE}/start/${bookId}`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      await loadAll();
+    } catch (e) {
+      alert('Could not start book: ' + e.message);
+    }
+  }
+
+  async function logProgress(bookId) {
+    const input = document.getElementById(`pages-${bookId}`);
+    const pages = parseInt(input.value, 10);
+    if (isNaN(pages) || pages < 0) {
+      alert('Enter a valid page number.');
+      return;
+    }
+    try {
+      const res = await fetch(`${BASE}/progress/${bookId}?pagesRead=${pages}`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      await loadAll();
+    } catch (e) {
+      alert('Could not log progress: ' + e.message);
+    }
+  }
+
+  async function finishBook(bookId) {
+    const rating = prompt('Rate this book 1–5:');
+    const r = parseInt(rating, 10);
+    if (isNaN(r) || r < 1 || r > 5) {
+      if (rating !== null) alert('Enter a number from 1 to 5.');
+      return;
+    }
+    try {
+      const res = await fetch(`${BASE}/finish/${bookId}?rating=${r}`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      await loadAll();
+    } catch (e) {
+      alert('Could not finish book: ' + e.message);
+    }
+  }
+
+  loadAll();
+</script>
+</body>
+</html>
