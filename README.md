@@ -143,7 +143,3 @@ Visit **http://localhost:8082** in your browser. The dashboard will:
 - Add resilience (timeouts/circuit breaker) around the `CatalogClient` HTTP calls
 - Add authentication if this moves beyond a local demo
 - Write integration tests that spin up both services (e.g. with Testcontainers or WireMock for Server 1)
-
-## License
-
-Add a license of your choice (MIT is a common default for demo projects).
